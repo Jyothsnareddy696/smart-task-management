@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Dashboard</title>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: auto;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .card {
+            background: white;
+            padding: 18px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 15px;
+        }
+
+        .stat {
+            flex: 1;
+            background: white;
+            padding: 15px;
+            text-align: center;
+        }
+
+        #chartBox {
+            width: 220px;
+            height: 220px;
+            margin: auto;
+        }
+
+        canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        .add-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        textarea {
+            grid-column: span 2;
+            height: 90px;
+        }
+
+        button {
+            background: green;
+            color: white;
+            border: none;
+            padding: 8px;
+            cursor: pointer;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+        }
+
+        th {
+            background: green;
+            color: white;
+        }
+
+        /* MODAL */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-box {
+            background: white;
+            padding: 20px;
+            width: 300px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <div class="top-bar">
+        <h2 id="welcomeText"></h2>
+        <button onclick="logout()">Logout</button>
+    </div>
+
+    <!-- ANALYTICS -->
+    <div class="card">
+        <h3>Analytics</h3>
+        <p>Total: <span id="totalTasks">0</span></p>
+        <p>Completed: <span id="completedTasks">0</span></p>
+        <p>Pending: <span id="pendingTasks">0</span></p>
+        <p>Rate: <span id="completionRate">0%</span></p>
+    </div>
+
+    <!-- CHART -->
+    <div class="card">
+        <div id="chartBox">
+            <canvas id="taskChart"></canvas>
+        </div>
+    </div>
+
+    <!-- ADD TASK -->
+    <div class="card">
+        <h3>Add Task</h3>
+
+        <div class="add-form">
+            <input id="title" placeholder="Title">
+            <select id="priority">
+                <option>High</option>
+                <option>Medium</option>
+                <option>Low</option>
+            </select>
+
+            <textarea id="description"></textarea>
+
+            <select id="status">
+                <option>Pending</option>
+                <option>Completed</option>
+            </select>
+
+            <button onclick="addTask()">Add</button>
+        </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="card">
+        <h3>Tasks</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Description</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="taskTable"></tbody>
+        </table>
+    </div>
+
+</div>
+
+<!-- UPDATE MODAL -->
+<div id="modal" class="modal">
+    <div class="modal-box">
+
+        <h3>Update Status</h3>
+
+        <select id="updateStatus">
+            <option>Pending</option>
+            <option>Completed</option>
+        </select>
+
+        <button onclick="submitUpdate()">Save</button>
+        <button onclick="closeModal()">Cancel</button>
+
+    </div>
+</div>
+
+<script>
+
+const socket = io("http://localhost:5000");
+
+let chart;
+let selectedId = null;
+
+const user_id = localStorage.getItem("user_id");
+
+document.getElementById("welcomeText").innerText =
+"Welcome " + localStorage.getItem("username");
+
+// ---------------- SOCKET ----------------
+socket.on("task_updated", function() {
+    loadTasks();   // REAL-TIME UPDATE
+});
+
+// ---------------- LOAD ----------------
+async function loadTasks() {
+
+    const res = await fetch(`/tasks/${user_id}`);
+    const tasks = await res.json();
+
+    const completed = tasks.filter(t => t.status === "Completed").length;
+    const pending = tasks.length - completed;
+
+    document.getElementById("totalTasks").innerText = tasks.length;
+    document.getElementById("completedTasks").innerText = completed;
+    document.getElementById("pendingTasks").innerText = pending;
+    document.getElementById("completionRate").innerText =
+        tasks.length ? ((completed / tasks.length) * 100).toFixed(2) : 0;
+
+    if(chart) chart.destroy();
+
+    chart = new Chart(document.getElementById("taskChart"), {
+        type: "pie",
+        data: {
+            labels: ["Completed", "Pending"],
+            datasets: [{ data: [completed, pending] }]
+        }
+    });
+
+    let rows = "";
+
+    tasks.forEach(t => {
+        rows += `
+        <tr>
+            <td>${t.id}</td>
+            <td>${t.title}</td>
+            <td>${t.description}</td>
+            <td>${t.priority}</td>
+            <td>${t.status}</td>
+            <td>
+                <button onclick="openModal(${t.id})">Update</button>
+                <button onclick="deleteTask(${t.id})">Delete</button>
+            </td>
+        </tr>`;
+    });
+
+    document.getElementById("taskTable").innerHTML = rows;
+}
+
+// ---------------- ADD ----------------
+async function addTask() {
+
+    const payload = {
+        title: document.getElementById("title").value,
+        description: document.getElementById("description").value,
+        priority: document.getElementById("priority").value,
+        status: document.getElementById("status").value,
+        user_id: localStorage.getItem("user_id")
+    };
+
+    const res = await fetch("/add-task", {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await res.json();
+
+    console.log(data); // DEBUG
+
+    loadTasks();
+}
+// ---------------- UPDATE MODAL ----------------
+function openModal(id){
+    selectedId = id;
+    document.getElementById("modal").classList.add("show");
+}
+
+function closeModal(){
+    document.getElementById("modal").classList.remove("show");
+}
+
+function submitUpdate(){
+
+    fetch(`/update-task/${selectedId}`, {
+        method:"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            status: document.getElementById("updateStatus").value
+        })
+    });
+
+    closeModal();
+}
+
+// ---------------- DELETE ----------------
+async function deleteTask(id){
+    await fetch(`/delete-task/${id}`, {method:"DELETE"});
+}
+
+// ---------------- LOGOUT ----------------
+function logout(){
+    localStorage.clear();
+    window.location.href="/login-page";
+}
+
+loadTasks();
+
+</script>
+
+</body>
+</html>
