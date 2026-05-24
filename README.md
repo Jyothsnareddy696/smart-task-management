@@ -21,24 +21,43 @@ Tools: Postman, pgAdmin
 📂 Project Structure
 smart-task-management/
 │
+
 ├── backend/
+
 │   ├── app.py
+
 │   ├── models.py
+
 │   ├── routes.py
+
 │   ├── config.py
+
 │   └── requirements.txt
+
 │
+
 ├── frontend/
+
 │   ├── index.html
+
 │   ├── style.css
+
 │   └── script.js
+
 │
+
 ├── database/
+
 │   └── schema.sql
+
 │
+
 ├── schema.pdf
+
 ├── README.md
+
 └── .env.example
+
 
 ⚙️ Installation & Setup
 1. Clone Repository
