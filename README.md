@@ -1,98 +1,83 @@
-# Smart Task Management System
+📌 Smart Task Management System
 
-## Project Overview
-This is a simple web-based Task Management System built using Flask.  
-It allows users to register, login, and manage their tasks with real-time updates.
+A full-stack web application built using Flask + PostgreSQL that allows users to register, login, and manage their tasks efficiently with priority and status tracking.
 
----
+🚀 Features
+User registration & login (authentication)
+Create, update, delete tasks
+Task priority management (Low / Medium / High)
+Task status tracking (Pending / Completed)
+User-specific task isolation
+RESTful API architecture
+PostgreSQL database integration
 
-## Features
+🛠️ Tech Stack
+Backend: Python (Flask)
+Database: PostgreSQL
+Frontend: HTML, CSS, JavaScript
+API: REST APIs
+Tools: Postman, pgAdmin
 
-- User Registration
-- User Login & Logout
-- Add Tasks
-- Update Tasks
-- Delete Tasks
-- View All Tasks
-- Task Analytics (Total, Completed, Pending, Completion %)
-- Real-time Updates using WebSockets
-- Export Tasks to CSV (Pandas)
+📂 Project Structure
+smart-task-management/
+│
+├── backend/
+│   ├── app.py
+│   ├── models.py
+│   ├── routes.py
+│   ├── config.py
+│   └── requirements.txt
+│
+├── frontend/
+│   ├── index.html
+│   ├── style.css
+│   └── script.js
+│
+├── database/
+│   └── schema.sql
+│
+├── schema.pdf
+├── README.md
+└── .env.example
 
----
-
-## Tech Stack
-
-- Python
-- Flask
-- PostgreSQL
-- SQLAlchemy
-- Flask-SocketIO (WebSockets)
-- Pandas
-- NumPy
-- HTML, CSS, JavaScript
-
----
-
-## Project Setup
-
-### 1. Clone the project
-
-git clone https://github.com/Jyothsnareddy696/smart-task-management.git
-
-
----
-
-### 2. Install dependencies
-
+⚙️ Installation & Setup
+1. Clone Repository
+git clone https://github.com/your-username/smart-task-management.git
+cd smart-task-management
+2. Create Virtual Environment
+python -m venv venv
+source venv/bin/activate   # Mac/Linux
+venv\Scripts\activate      # Windows
+3. Install Dependencies
 pip install -r requirements.txt
+4. Setup Database (PostgreSQL)
+psql -U postgres -f database/schema.sql
+5. Run Application
+python backend/app.py
+
+🔗 API Endpoints
+Auth APIs
+POST /api/register → Register user
+POST /api/login → Login user
+Task APIs
+GET /api/tasks → Get all tasks
+POST /api/tasks → Create task
+PUT /api/tasks/<id> → Update task
+DELETE /api/tasks/<id> → Delete tas
+
+🧪 Testing
+You can test APIs using:
+Postman
+Browser (GET requests)
+Frontend UI
 
 
----
 
-### 3. Setup Database (PostgreSQL)
+Create a .env file:
 
-- Create database:
-
-task_manager
-
-
-- Run schema file:
-
-database/schema.sql
-
-
----
-
-### 4. Run the project
-
-python app.py
-
-
----
-
-## API Endpoints
-
-- POST /register → Register user  
-- POST /login → Login user  
-- GET /tasks/<user_id> → Get all tasks  
-- POST /add-task → Add task  
-- PUT /update-task/<id> → Update task  
-- DELETE /delete-task/<id> → Delete task  
-- GET /task-analytics/<user_id> → Get analytics  
-- GET /export-tasks/<user_id> → Download CSV  
-
----
-
-## How it works
-
-- Users login and access dashboard
-- Tasks can be added, updated, and deleted
-- Dashboard updates automatically using WebSockets
-- Analytics show task statistics
-- Data is stored in PostgreSQL database
-
----
-
-## Author
-
-Jyothsna
+DATABASE_URL=postgresql://username:password@localhost/dbname
+SECRET_KEY=your_secret_key
+📌 Important Notes
+Passwords are stored in hashed format
+Each user sees only their own tasks
+Database uses relational integrity (foreign keys)
