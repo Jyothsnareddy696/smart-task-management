@@ -42,7 +42,7 @@ smart-task-management/
 
 ⚙️ Installation & Setup
 1. Clone Repository
-git clone https://github.com/your-username/smart-task-management.git
+git clone (https://github.com/Jyothsnareddy696/smart-task-management.git)
 cd smart-task-management
 2. Create Virtual Environment
 python -m venv venv
