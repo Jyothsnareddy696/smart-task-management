@@ -11,6 +11,10 @@ app = Flask(__name__)
 app.secret_key = "smart_task_secret_key"
 app.config.from_object(Config)
 
+# 🔥 IMPORTANT: session stability fix
+app.config['SESSION_COOKIE_SAMESITE'] = "Lax"
+app.config['SESSION_COOKIE_SECURE'] = False
+
 db = SQLAlchemy(app)
 
 # ---------------- SOCKET IO ----------------
@@ -45,35 +49,32 @@ def home():
 def register():
     data = request.get_json()
 
-    if not data:
-        return jsonify({"message": "No data"}), 400
+    username = data.get('username')
+    email = data.get('email')
+    password = data.get('password')
 
-    if User.query.filter_by(email=data['email']).first():
+    if User.query.filter_by(email=email).first():
         return jsonify({"message": "Email exists"}), 400
 
-    user = User(
-        username=data['username'],
-        email=data['email'],
-        password=data['password']
-    )
+    user = User(username=username, email=email, password=password)
 
     db.session.add(user)
     db.session.commit()
 
     return jsonify({"message": "Registered"})
 
-
-# ---------------- LOGIN ----------------
+# ---------------- LOGIN (FIXED) ----------------
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
 
-    user = User.query.filter_by(
-        email=data['email'],
-        password=data['password']
-    ).first()
+    email = data.get('email')
+    password = data.get('password')
+
+    user = User.query.filter_by(email=email, password=password).first()
 
     if user:
+        # 🔥 SESSION FIX (THIS WAS MISSING BEFORE)
         session['user_id'] = user.id
         session['username'] = user.username
 
@@ -85,15 +86,16 @@ def login():
 
     return jsonify({"message": "Invalid credentials"}), 401
 
-
 # ---------------- DASHBOARD ----------------
 @app.route('/dashboard')
 def dashboard():
     if 'user_id' not in session:
         return redirect('/login-page')
+
     return render_template('dashboard.html')
 
 
+# ---------------- LOGIN / REGISTER PAGES ----------------
 @app.route('/login-page')
 def login_page():
     return render_template('login.html')
@@ -103,8 +105,8 @@ def login_page():
 def register_page():
     return render_template('register.html')
 
-
 # ---------------- TASK APIs ----------------
+
 @app.route('/tasks/<int:user_id>')
 def get_tasks(user_id):
     tasks = Task.query.filter_by(user_id=user_id).all()
@@ -117,8 +119,7 @@ def get_tasks(user_id):
         "status": t.status
     } for t in tasks])
 
-
-# ---------------- ADD TASK (REALTIME) ----------------
+# ---------------- ADD TASK ----------------
 @app.route('/add-task', methods=['POST'])
 def add_task():
     data = request.get_json()
@@ -135,7 +136,6 @@ def add_task():
     db.session.add(task)
     db.session.commit()
 
-    # 🔥 WebSocket event
     socketio.emit("task_updated", {
         "action": "created",
         "task_id": task.id
@@ -143,8 +143,7 @@ def add_task():
 
     return jsonify({"message": "Task created"})
 
-
-# ---------------- UPDATE TASK (REALTIME) ----------------
+# ---------------- UPDATE TASK ----------------
 @app.route('/update-task/<int:id>', methods=['PUT'])
 def update_task(id):
     task = Task.query.get(id)
@@ -167,8 +166,7 @@ def update_task(id):
 
     return jsonify({"message": "Updated"})
 
-
-# ---------------- DELETE TASK (REALTIME) ----------------
+# ---------------- DELETE TASK ----------------
 @app.route('/delete-task/<int:id>', methods=['DELETE'])
 def delete_task(id):
     task = Task.query.get(id)
@@ -186,8 +184,7 @@ def delete_task(id):
 
     return jsonify({"message": "Deleted"})
 
-
-# ---------------- ANALYTICS (REAL NUMPY) ----------------
+# ---------------- ANALYTICS ----------------
 @app.route('/task-analytics/<int:user_id>')
 def analytics(user_id):
     tasks = Task.query.filter_by(user_id=user_id).all()
@@ -207,8 +204,7 @@ def analytics(user_id):
         "completion_rate": round(float(completion_rate), 2)
     })
 
-
-# ---------------- EXPORT CSV ----------------
+# ---------------- EXPORT ----------------
 @app.route('/export-tasks/<int:user_id>')
 def export(user_id):
     tasks = Task.query.filter_by(user_id=user_id).all()
@@ -225,13 +221,11 @@ def export(user_id):
 
     return send_file(file, as_attachment=True)
 
-
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect('/login-page')
-
 
 # ---------------- RUN SERVER ----------------
 if __name__ == "__main__":
