@@ -36,13 +36,6 @@
             gap: 15px;
         }
 
-        .stat {
-            flex: 1;
-            background: white;
-            padding: 15px;
-            text-align: center;
-        }
-
         #chartBox {
             width: 220px;
             height: 220px;
@@ -71,6 +64,11 @@
             border: none;
             padding: 8px;
             cursor: pointer;
+            border-radius: 5px;
+        }
+
+        button:hover {
+            opacity: 0.9;
         }
 
         table {
@@ -109,6 +107,27 @@
         .modal.show {
             display: flex;
         }
+
+        /* FILTER BUTTONS */
+        .filters {
+            margin: 10px 0;
+            display: flex;
+            gap: 10px;
+        }
+
+        .filters button.active {
+            background: darkgreen;
+        }
+
+        /* SEARCH */
+        .search-box {
+            margin-bottom: 10px;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+        }
     </style>
 </head>
 
@@ -128,6 +147,19 @@
         <p>Completed: <span id="completedTasks">0</span></p>
         <p>Pending: <span id="pendingTasks">0</span></p>
         <p>Rate: <span id="completionRate">0%</span></p>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="card">
+        <div class="filters">
+            <button onclick="setFilter('ALL')" id="f_all" class="active">All</button>
+            <button onclick="setFilter('Pending')" id="f_pending">Pending</button>
+            <button onclick="setFilter('Completed')" id="f_completed">Completed</button>
+        </div>
+
+        <div class="search-box">
+            <input type="text" id="search" placeholder="Search tasks..." oninput="loadTasks()">
+        </div>
     </div>
 
     <!-- CHART -->
@@ -203,6 +235,7 @@ const socket = io("http://localhost:5000");
 
 let chart;
 let selectedId = null;
+let currentFilter = "ALL";
 
 const user_id = localStorage.getItem("user_id");
 
@@ -211,17 +244,45 @@ document.getElementById("welcomeText").innerText =
 
 // ---------------- SOCKET ----------------
 socket.on("task_updated", function() {
-    loadTasks();   // REAL-TIME UPDATE
+    loadTasks();
 });
 
-// ---------------- LOAD ----------------
+// ---------------- FILTER ----------------
+function setFilter(f) {
+    currentFilter = f;
+
+    document.querySelectorAll(".filters button").forEach(b => b.classList.remove("active"));
+
+    if (f === "ALL") document.getElementById("f_all").classList.add("active");
+    if (f === "Pending") document.getElementById("f_pending").classList.add("active");
+    if (f === "Completed") document.getElementById("f_completed").classList.add("active");
+
+    loadTasks();
+}
+
+// ---------------- LOAD TASKS ----------------
 async function loadTasks() {
 
     const res = await fetch(`/tasks/${user_id}`);
-    const tasks = await res.json();
+    let tasks = await res.json();
 
+    // FILTER
+    if (currentFilter !== "ALL") {
+        tasks = tasks.filter(t => t.status === currentFilter);
+    }
+
+    // SEARCH
+    const search = document.getElementById("search").value.toLowerCase();
+    if (search) {
+        tasks = tasks.filter(t =>
+            t.title.toLowerCase().includes(search) ||
+            t.description.toLowerCase().includes(search)
+        );
+    }
+
+    // STATS
     const completed = tasks.filter(t => t.status === "Completed").length;
-    const pending = tasks.length - completed;
+    const pending = tasks.filter(t => t.status === "Pending").length;
 
     document.getElementById("totalTasks").innerText = tasks.length;
     document.getElementById("completedTasks").innerText = completed;
@@ -229,16 +290,29 @@ async function loadTasks() {
     document.getElementById("completionRate").innerText =
         tasks.length ? ((completed / tasks.length) * 100).toFixed(2) : 0;
 
+    // CHART
     if(chart) chart.destroy();
 
     chart = new Chart(document.getElementById("taskChart"), {
-        type: "pie",
-        data: {
-            labels: ["Completed", "Pending"],
-            datasets: [{ data: [completed, pending] }]
+    type: "pie",
+    data: {
+        labels: ["Completed", "Pending"],
+        datasets: [{ data: [completed, pending] }]
+    },
+    options: {
+        plugins: {
+            title: {
+                display: true,
+                text: "Task Status Overview",
+                font: {
+                    size: 18
+                }
+            }
         }
-    });
+    }
+});
 
+    // TABLE
     let rows = "";
 
     tasks.forEach(t => {
@@ -267,24 +341,19 @@ async function addTask() {
         description: document.getElementById("description").value,
         priority: document.getElementById("priority").value,
         status: document.getElementById("status").value,
-        user_id: localStorage.getItem("user_id")
+        user_id: user_id
     };
 
-    const res = await fetch("/add-task", {
+    await fetch("/add-task", {
         method: "POST",
-        headers: {
-            "Content-Type": "application/json"
-        },
+        headers: {"Content-Type": "application/json"},
         body: JSON.stringify(payload)
     });
 
-    const data = await res.json();
-
-    console.log(data); // DEBUG
-
     loadTasks();
 }
-// ---------------- UPDATE MODAL ----------------
+
+// ---------------- UPDATE ----------------
 function openModal(id){
     selectedId = id;
     document.getElementById("modal").classList.add("show");
