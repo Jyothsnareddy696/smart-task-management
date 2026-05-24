@@ -37,7 +37,7 @@ It allows users to register, login, and manage their tasks with real-time update
 
 ### 1. Clone the project
 
-git clone <your-github-repo-link>
+git clone https://github.com/Jyothsnareddy696/smart-task-management.git
 
 
 ---
